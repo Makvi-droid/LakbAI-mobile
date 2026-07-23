@@ -11,18 +11,17 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
+import { Link } from 'expo-router';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    // Implement your email/password authentication logic here
     console.log('Logging in with:', email, password);
   };
 
   const handleGoogleLogin = () => {
-    // Trigger Google Sign-In SDK / Auth Session
     console.log('Logging in with Google');
   };
 
@@ -86,6 +85,16 @@ export default function LoginScreen() {
               <Text style={styles.googleIcon}>G</Text>
               <Text style={styles.googleButtonText}>Log in with Google</Text>
             </TouchableOpacity>
+
+            {/* Link to Sign Up */}
+            <View style={styles.footerContainer}>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <Link href="/(auth)/signupScreen" asChild>
+                <TouchableOpacity>
+                  <Text style={styles.footerLink}>Sign up</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -188,6 +197,21 @@ const styles = StyleSheet.create({
   googleButtonText: {
     color: '#374151',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  footerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  footerText: {
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  footerLink: {
+    color: '#2563EB',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
