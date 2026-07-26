@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
-import { supabase } from '../../../supabase';
+import { supabase } from '@/lib/supabase';
 
 export default function SignUpScreen() {
   const router = useRouter();
