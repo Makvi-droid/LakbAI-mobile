@@ -63,7 +63,7 @@ export default function LoginScreen() {
             {/* Card */}
             <View style={[styles.card, isTablet && styles.cardTablet]}>
               <Text style={styles.title}>Welcome back</Text>
-              <Text style={styles.subtitle}>Sign in to continue your journey</Text>
+              <Text style={styles.subtitle}>Log in to continue your journey</Text>
 
               <View style={styles.formContainer}>
                 <View style={styles.inputGroup}>
@@ -110,7 +110,7 @@ export default function LoginScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} activeOpacity={0.85}>
-                  <Text style={styles.primaryButtonText}>Sign In</Text>
+                  <Text style={styles.primaryButtonText}>Log In</Text>
                   <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>

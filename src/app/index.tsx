@@ -1,12 +1,5 @@
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import LogInScreen from "./(auth)/loginScreen";
+import { Redirect } from "expo-router";
 
 export default function Index() {
-  return (
-    <SafeAreaProvider>
-      <LogInScreen/>
-    </SafeAreaProvider>
-  );
+  return <Redirect href="/(auth)/loginScreen" />;
 }
-
-
