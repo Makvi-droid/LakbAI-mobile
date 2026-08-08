@@ -10,22 +10,42 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
+  Alert,
+  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+  const { signIn } = useAuth();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
 
-  const handleLogin = () => {
-    console.log('Logging in with:', email, password);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing Fields', 'Please enter your email and password.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await signIn(email, password);
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Login Failed', error.message);
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -79,6 +99,7 @@ export default function LoginScreen() {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
+                      editable={!loading}
                     />
                   </View>
                 </View>
@@ -94,6 +115,7 @@ export default function LoginScreen() {
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
+                      editable={!loading}
                     />
                     <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
                       <Ionicons
@@ -109,9 +131,20 @@ export default function LoginScreen() {
                   <Text style={styles.forgotPasswordText}>Forgot password?</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} activeOpacity={0.85}>
-                  <Text style={styles.primaryButtonText}>Log In</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                <TouchableOpacity
+                  style={[styles.primaryButton, loading && styles.disabledButton]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Text style={styles.primaryButtonText}>Log In</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
 
@@ -121,7 +154,12 @@ export default function LoginScreen() {
                 <View style={styles.dividerLine} />
               </View>
 
-              <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={handleGoogleLogin}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.googleIcon}>G</Text>
                 <Text style={styles.googleButtonText}>Log in with Google</Text>
               </TouchableOpacity>
@@ -129,7 +167,7 @@ export default function LoginScreen() {
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>Don't have an account? </Text>
                 <Link href="/(auth)/signupScreen" asChild>
-                  <TouchableOpacity>
+                  <TouchableOpacity disabled={loading}>
                     <Text style={styles.footerLink}>Sign up</Text>
                   </TouchableOpacity>
                 </Link>
@@ -143,19 +181,10 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0B3D5C',
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  scrollContentTablet: {
-    alignItems: 'center',
-  },
+  safeArea: { flex: 1, backgroundColor: '#0B3D5C' },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  scrollContentTablet: { alignItems: 'center' },
   hero: {
     paddingTop: 48,
     paddingBottom: 56,
@@ -164,11 +193,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
-  heroTablet: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-  },
+  heroTablet: { width: '100%', maxWidth: 480, alignSelf: 'center' },
   logoBadge: {
     width: 56,
     height: 56,
@@ -183,17 +208,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  brand: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  brandTagline: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 4,
-  },
+  brand: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+  brandTagline: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
   card: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -204,34 +220,12 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 24,
   },
-  cardTablet: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    marginTop: -28,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 24,
-  },
-  formContainer: {
-    gap: 16,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-  },
+  cardTablet: { width: '100%', maxWidth: 480, alignSelf: 'center', marginTop: -28 },
+  title: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 24 },
+  formContainer: { gap: 16 },
+  inputGroup: { gap: 6 },
+  label: { fontSize: 13, fontWeight: '600', color: '#374151' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,22 +237,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     gap: 10,
   },
-  inputIcon: {
-    marginTop: 1,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: '#111827',
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-  },
-  forgotPasswordText: {
-    fontSize: 13,
-    color: '#1E6E8C',
-    fontWeight: '600',
-  },
+  inputIcon: { marginTop: 1 },
+  input: { flex: 1, fontSize: 15, color: '#111827' },
+  forgotPassword: { alignSelf: 'flex-end' },
+  forgotPasswordText: { fontSize: 13, color: '#1E6E8C', fontWeight: '600' },
   primaryButton: {
     height: 52,
     backgroundColor: '#FF7A45',
@@ -274,27 +256,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
   },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E9F0',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#9CA3AF',
-    fontSize: 13,
-    fontWeight: '500',
-  },
+  disabledButton: { opacity: 0.7 },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E9F0' },
+  dividerText: { marginHorizontal: 12, color: '#9CA3AF', fontSize: 13, fontWeight: '500' },
   googleButton: {
     height: 50,
     borderWidth: 1.5,
@@ -306,29 +272,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     gap: 10,
   },
-  googleIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4285F4',
-  },
-  googleButtonText: {
-    color: '#374151',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  footerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  footerText: {
-    color: '#6B7280',
-    fontSize: 14,
-  },
-  footerLink: {
-    color: '#FF7A45',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  googleIcon: { fontSize: 18, fontWeight: 'bold', color: '#4285F4' },
+  googleButtonText: { color: '#374151', fontSize: 15, fontWeight: '600' },
+  footerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20 },
+  footerText: { color: '#6B7280', fontSize: 14 },
+  footerLink: { color: '#FF7A45', fontSize: 14, fontWeight: '700' },
 });
