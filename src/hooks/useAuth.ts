@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { signInWithGoogle as signInWithGoogleFlow } from '@/lib/googleAuth';
 
 interface UseAuthReturn {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<{ error: AuthError | null }>;
+  signInWithGoogle: () => Promise<{ session: Session | null; error: Error | null }>;
 }
 
 export function useAuth(): UseAuthReturn {
@@ -16,7 +18,6 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     let isMounted = true;
 
-    // Get whatever session (if any) is already stored on disk
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (isMounted) {
         setSession(session);
@@ -24,7 +25,6 @@ export function useAuth(): UseAuthReturn {
       }
     });
 
-    // Keep session in sync on sign-in, sign-out, token refresh, etc.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -52,5 +52,22 @@ export function useAuth(): UseAuthReturn {
     return { error };
   }, []);
 
-  return { session, loading, signIn, signOut };
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      // On web this resolves to null almost immediately because the tab
+      // navigates away to Google — that's fine, /auth-callback finishes
+      // the job on return. On native this resolves to the actual
+      // session once the Custom Tab closes, since there's no separate
+      // screen navigation involved in that path.
+      const session = await signInWithGoogleFlow();
+      return { session, error: null };
+    } catch (err) {
+      return {
+        session: null,
+        error: err instanceof Error ? err : new Error('Google sign-in failed.'),
+      };
+    }
+  }, []);
+
+  return { session, loading, signIn, signOut, signInWithGoogle };
 }

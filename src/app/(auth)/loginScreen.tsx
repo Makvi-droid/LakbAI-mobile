@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -46,10 +47,6 @@ export default function LoginScreen() {
     } else {
       router.replace('/(tabs)');
     }
-  };
-
-  const handleGoogleLogin = () => {
-    console.log('Logging in with Google');
   };
 
   return (
@@ -154,15 +151,7 @@ export default function LoginScreen() {
                 <View style={styles.dividerLine} />
               </View>
 
-              <TouchableOpacity
-                style={styles.googleButton}
-                onPress={handleGoogleLogin}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.googleIcon}>G</Text>
-                <Text style={styles.googleButtonText}>Log in with Google</Text>
-              </TouchableOpacity>
+              <GoogleAuthButton label="Log in with Google" disabled={loading} />
 
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>Don't have an account? </Text>
@@ -261,19 +250,6 @@ const styles = StyleSheet.create({
   dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E9F0' },
   dividerText: { marginHorizontal: 12, color: '#9CA3AF', fontSize: 13, fontWeight: '500' },
-  googleButton: {
-    height: 50,
-    borderWidth: 1.5,
-    borderColor: '#E5E9F0',
-    borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    gap: 10,
-  },
-  googleIcon: { fontSize: 18, fontWeight: 'bold', color: '#4285F4' },
-  googleButtonText: { color: '#374151', fontSize: 15, fontWeight: '600' },
   footerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20 },
   footerText: { color: '#6B7280', fontSize: 14 },
   footerLink: { color: '#FF7A45', fontSize: 14, fontWeight: '700' },
