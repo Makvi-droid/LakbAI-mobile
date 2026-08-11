@@ -24,14 +24,14 @@ const destinations: Destination[] = [
     location: "Palawan",
     rating: "96%",
     crowd: "Busy",
-    image: require("../../assets/images/beachpls.jpg"),
+    image: require("../../../assets/images/beachpls.jpg"),
   },
   {
     name: "Boracay",
     location: "Aklan",
     rating: "91%",
     crowd: "Moderate",
-    image: require("../../assets/images/beachpls.jpg"),
+    image: require("../../../assets/images/beachpls.jpg"),
   },
 ];
 
