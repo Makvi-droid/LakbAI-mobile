@@ -1,14 +1,41 @@
-import { View, Text, StyleSheet } from "react-native";
+import { router } from "expo-router";
+import { ScrollView, View } from "react-native";
+
+import CategoryTabs from "../../components/home/CategoryTabs";
+import DestinationCard from "../../components/home/DestinationCard";
+import HiddenGemsCard from "../../components/home/HiddenGemsCard";
+import HomeHeader from "../../components/home/HomeHeader";
+import SearchBar from "../../components/home/SearchBar";
+import SectionHeader from "../../components/home/SectionHeader";
+import { categories, destinations } from "../../constants/destinations";
 
 export default function HomeScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Welcome to LakbAI 🎉</Text>
+    <View className="flex-1 bg-[#F0FAFE]">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="px-5 pt-[55px] pb-[120px]"
+      >
+        <HomeHeader />
+        <SearchBar />
+        <HiddenGemsCard />
+        <CategoryTabs categories={categories} />
+
+        <SectionHeader title="Explore destinations" />
+
+        {destinations.map((destination) => (
+          <DestinationCard
+  key={destination.name}
+  destination={destination}
+  onPress={() =>
+    router.push({
+      pathname: "/destination/[id]",
+      params: { id: destination.name },
+    })
+  }
+/>
+        ))}
+      </ScrollView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
-  text: { fontSize: 18, fontWeight: "600" },
-});
