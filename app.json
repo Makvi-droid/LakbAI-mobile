@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.zephxin.lakbaimobile"
     },
     "web": {
       "output": "static",
@@ -38,7 +39,8 @@
       "expo-status-bar",
       "expo-web-browser",
       "expo-sqlite",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@rnmapbox/maps"
     ],
     "experiments": {
       "typedRoutes": true,
