@@ -63,7 +63,7 @@ export default function MapScreen() {
     if (result) setSelectedSpot(result);
   };
 
-  return (
+    return (
     <View className="flex-1">
       <MapView style={{ flex: 1 }} onPress={handleMapPress}>
         <Camera
@@ -81,14 +81,16 @@ export default function MapScreen() {
 
       <View className="absolute top-[55px] left-4 right-4">
         <SearchBar
-  onSelectLocation={(feature) => {
-    setSelectedSpot(feature);
-    flyTo(feature.coordinate, 14);
-  }}
-/>
-      </View>
+          onSelectLocation={(feature) => {
+            setSelectedSpot(feature);
+            flyTo(feature.coordinate, 14);
+          }}
+        />
 
-      <ZoomControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
+        <View className="mt-3">
+          <ZoomControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
+        </View>
+      </View>
 
       {selectedSpot && (
         <SpotCard

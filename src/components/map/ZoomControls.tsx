@@ -9,7 +9,7 @@ type ZoomControlsProps = {
 export default function ZoomControls({ onZoomIn, onZoomOut }: ZoomControlsProps) {
   return (
     <View
-      className="absolute right-4 bottom-[130px] bg-white rounded-2xl overflow-hidden"
+      className="bg-white rounded-2xl overflow-hidden self-end"
       style={{
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
