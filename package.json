@@ -7,10 +7,12 @@
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.18.16",
+    "@rnmapbox/maps": "^10.3.5",
     "@supabase/supabase-js": "^2.110.8",
     "babel-preset-expo": "^57.0.6",
     "expo": "~57.0.10",
     "expo-auth-session": "~57.0.6",
+    "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.3",
     "expo-device": "~57.0.1",
     "expo-font": "~57.0.0",
@@ -49,8 +51,8 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint"
   },
