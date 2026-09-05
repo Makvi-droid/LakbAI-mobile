@@ -1,11 +1,15 @@
-import { ImageSourcePropType } from "react-native";
+export type SupabaseCrowdLevel = "low" | "medium" | "high";
 
-export type CrowdLevel = "Busy" | "Moderate" | "Quiet";
-
-export type Destination = {
-  name: string;
-  location: string;
-  rating: string;
-  crowd: CrowdLevel;
-  image: ImageSourcePropType;
-};
+export interface DestinationRecord {
+  destination_id: number;
+  destination_name: string;
+  region: string;
+  category: string;
+  crowd_level: SupabaseCrowdLevel;
+  description: string;
+  latitude: number;
+  longitude: number;
+  destination_photos: string[];
+  immersive_support: boolean;
+  max_capacity: number;
+}

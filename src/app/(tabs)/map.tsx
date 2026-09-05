@@ -1,12 +1,17 @@
 import Mapbox, { Camera, MapView } from "@rnmapbox/maps";
 import { useRef, useState } from "react";
 import { View } from "react-native";
+import DestinationMarker from "../../components/map/DestinationMarker";
 import SearchBar from "../../components/map/SearchBar";
 import SpotCard from "../../components/map/SpotCard";
+import SpotDetailSheet from "../../components/map/SpotDetailSheet";
 import SpotMarker from "../../components/map/SpotMarker";
 import ZoomControls from "../../components/map/ZoomControls";
+import { useDestinations } from "../../hooks/useDestinations";
 import { useReverseGeocode } from "../../hooks/useReverseGeocode";
+import { DestinationRecord } from "../../types/destination";
 import { GeocodingFeature } from "../../types/geocoding";
+import { toMapSpot } from "../../utils/toMapSpot";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!);
 
@@ -20,7 +25,10 @@ export default function MapScreen() {
   const cameraRef = useRef<Camera>(null);
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const [selectedSpot, setSelectedSpot] = useState<GeocodingFeature | null>(null);
+  const [activeDestination, setActiveDestination] =
+    useState<DestinationRecord | null>(null);
   const { reverseGeocode, loading } = useReverseGeocode();
+  const { destinations } = useDestinations();
 
   const flyTo = (coordinate: [number, number], zoom = SEARCH_RESULT_ZOOM) => {
     setZoomLevel(zoom);
@@ -63,7 +71,7 @@ export default function MapScreen() {
     if (result) setSelectedSpot(result);
   };
 
-    return (
+  return (
     <View className="flex-1">
       <MapView style={{ flex: 1 }} onPress={handleMapPress}>
         <Camera
@@ -73,6 +81,14 @@ export default function MapScreen() {
             zoomLevel: DEFAULT_ZOOM,
           }}
         />
+
+        {destinations.map((destination) => (
+          <DestinationMarker
+            key={destination.destination_id}
+            destination={destination}
+            onPress={setActiveDestination}
+          />
+        ))}
 
         {selectedSpot && (
           <SpotMarker id={selectedSpot.id} coordinate={selectedSpot.coordinate} />
@@ -99,6 +115,15 @@ export default function MapScreen() {
           onClose={() => setSelectedSpot(null)}
         />
       )}
+
+      <SpotDetailSheet
+        spot={activeDestination ? toMapSpot(activeDestination) : null}
+        visible={!!activeDestination}
+        onClose={() => setActiveDestination(null)}
+        onAskLakbAI={() => {
+          // stubbed until the LakbAI assistant flow is wired up
+        }}
+      />
     </View>
   );
 }
