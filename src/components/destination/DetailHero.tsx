@@ -1,11 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Image, ImageSourcePropType, Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { Pressable, Text, View } from "react-native";
 
 type DetailHeroProps = {
-  image: ImageSourcePropType;
+  image: string;
   location: string;
   title: string;
+  isFavorited?: boolean;
   onFavoritePress?: () => void;
 };
 
@@ -13,11 +15,12 @@ export default function DetailHero({
   image,
   location,
   title,
+  isFavorited = false,
   onFavoritePress,
 }: DetailHeroProps) {
   return (
     <View className="h-[245px] relative overflow-hidden">
-      <Image source={image} className="w-full h-full" resizeMode="cover" />
+      <Image source={{ uri: image }} className="w-full h-full" contentFit="cover" />
 
       <Pressable
         onPress={() => router.back()}
@@ -30,14 +33,16 @@ export default function DetailHero({
         onPress={onFavoritePress}
         className="absolute top-[42px] right-[14px] w-[31px] h-[31px] rounded-2xl bg-white/90 items-center justify-center"
       >
-        <Ionicons name="heart-outline" size={17} color="#F05C67" />
+        <Ionicons
+          name={isFavorited ? "heart" : "heart-outline"}
+          size={17}
+          color="#F05C67"
+        />
       </Pressable>
 
       <View className="absolute left-[18px] bottom-[47px] flex-row items-center">
         <Ionicons name="location" size={10} color="#FFFFFF" />
-        <Text className="text-white text-[9px] font-medium ml-[3px]">
-          {location}
-        </Text>
+        <Text className="text-white text-[9px] font-medium ml-[3px]">{location}</Text>
       </View>
 
       <Text className="absolute left-[18px] bottom-5 text-white text-[25px] font-bold">

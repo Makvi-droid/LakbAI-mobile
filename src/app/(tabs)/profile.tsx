@@ -3,6 +3,7 @@ import ProfileInfoCard from "@/components/profile/ProfileInfoCard";
 import SavedItineraries from "@/components/profile/SavedItineraries";
 import SignOutButton from "@/components/profile/SignOutButton";
 import TravelPreferences from "@/components/profile/TravelPreferences";
+import SavedDestinations from "@/components/profile/SavedDestinations";
 import { useProfile } from "@/hooks/useProfile";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -35,6 +36,7 @@ export default function ProfileScreen() {
         <View className="px-5 mt-2">
           <TravelPreferences />
           <SavedItineraries />
+          <SavedDestinations />
 
           <ProfileInfoCard profile={profile} />
           <SignOutButton />

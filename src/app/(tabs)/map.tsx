@@ -15,6 +15,7 @@ import { useReverseGeocode } from "../../hooks/useReverseGeocode";
 import { DestinationRecord } from "../../types/destination";
 import { GeocodingFeature } from "../../types/geocoding";
 import { toMapSpot } from "../../utils/toMapSpot";
+import { useSavedDestinationIds } from "../../hooks/useSavedDestinationIds";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!);
 
@@ -31,6 +32,8 @@ export default function MapScreen() {
   const [activeDestination, setActiveDestination] = useState<DestinationRecord | null>(null);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
 
+
+  const { isSaved, toggleSave } = useSavedDestinationIds();
   const { reverseGeocode, loading } = useReverseGeocode();
   const { destinations } = useDestinations();
   const {
@@ -128,9 +131,13 @@ export default function MapScreen() {
       <SpotDetailSheet
         spot={activeDestination ? toMapSpot(activeDestination) : null}
         visible={!!activeDestination}
+        isSaved={activeDestination ? isSaved(activeDestination.destination_id) : false}
         onClose={() => setActiveDestination(null)}
         onAskLakbAI={() => {
           // stubbed until the LakbAI assistant flow is wired up
+        }}
+        onToggleSave={() => {
+          if (activeDestination) toggleSave(activeDestination.destination_id);
         }}
       />
 
