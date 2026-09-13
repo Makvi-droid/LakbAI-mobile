@@ -1,17 +1,23 @@
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
 import { DateData } from "react-native-calendars";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AIItineraryOptionsList } from "../../components/itineraries/AIItineraryOptionsList";
 import { BudgetCard } from "../../components/itineraries/BudgetCard";
 import { BudgetModal } from "../../components/itineraries/BudgetModal";
 import { DateMode, DatePickerModal } from "../../components/itineraries/DatePickerModal";
 import { GenerateButton } from "../../components/itineraries/GenerateButton";
+import { MultiSelectChips } from "../../components/itineraries/MultiSelectChips";
 import { TravelDatesCard } from "../../components/itineraries/TravelDatesCard";
 import { TravelerPills } from "../../components/itineraries/TravelerPills";
-import { useCreateItinerary } from "../../hooks/useCreateItinerary";
-import { TravelType } from "../../types/itinerary";
+import { PREFERRED_ACTIVITIES } from "../../constants/activities";
+import { INTERESTS } from "../../constants/interests";
+import { useGenerateItineraryOptions } from "../../hooks/useGenerateItineraryOptions";
+import { useSaveGeneratedItinerary } from "../../hooks/useSaveGeneratedItinerary";
+import { ItineraryGenerationParams, TravelType } from "../../types/itinerary";
 
 function toDateString(date: Date) {
   const y = date.getFullYear();
@@ -34,8 +40,16 @@ function formatNumber(value: string) {
 const RANGE_COLOR = "#9CA3AF";
 const RANGE_TEXT_COLOR = "#fff";
 
+type ScreenMode = "form" | "options";
+
 export default function CalendarScreen() {
-  const { createItinerary, loading, error } = useCreateItinerary();
+  const { generate, reset, loading: generating, error: generateError, options } =
+    useGenerateItineraryOptions();
+  const { save, loading: saving } = useSaveGeneratedItinerary();
+
+  const [mode, setMode] = useState<ScreenMode>("form");
+  const [choosingIndex, setChoosingIndex] = useState<number | null>(null);
+  const [lastParams, setLastParams] = useState<ItineraryGenerationParams | null>(null);
 
   const [traveler, setTraveler] = useState<TravelType>("Solo");
 
@@ -49,6 +63,9 @@ export default function CalendarScreen() {
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
   const [draftMin, setDraftMin] = useState(minBudget);
   const [draftMax, setDraftMax] = useState(maxBudget);
+
+  const [interests, setInterests] = useState<string[]>([]);
+  const [activities, setActivities] = useState<string[]>([]);
 
   const dateLabel = {
     start: startDate ? formatDate(startDate) : "Select",
@@ -78,12 +95,7 @@ export default function CalendarScreen() {
     if (!startDate) return {};
     if (!endDate) {
       return {
-        [startDate]: {
-          startingDay: true,
-          endingDay: true,
-          color: RANGE_COLOR,
-          textColor: RANGE_TEXT_COLOR,
-        },
+        [startDate]: { startingDay: true, endingDay: true, color: RANGE_COLOR, textColor: RANGE_TEXT_COLOR },
       };
     }
     const marked: Record<string, any> = {};
@@ -126,59 +138,111 @@ export default function CalendarScreen() {
     setBudgetModalVisible(false);
   };
 
+  const toggleInterest = (value: string) => {
+    setInterests((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+  };
+
+  const toggleActivity = (value: string) => {
+    setActivities((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
+  };
+
   const canGenerate = !!(startDate && endDate && minBudget && maxBudget);
 
-  const handleGenerate = async () => {
+  const runGenerate = async () => {
     if (!startDate || !endDate) return;
 
-    // ASSUMPTION: there's no title field in this screen yet, so we build one.
-    // Swap this for a real title input whenever you add one.
-    const title = `${traveler} Trip — ${formatDate(startDate)} to ${formatDate(endDate)}`;
-    const totalBudget = Number(maxBudget.replace(/,/g, "")) || 0;
+    const params: ItineraryGenerationParams = {
+      startDate,
+      endDate,
+      travelType: traveler,
+      totalBudgetMax: Number(maxBudget.replace(/,/g, "")) || 0,
+      interests,
+      activities,
+    };
+    setLastParams(params);
 
-    const itinerary = await createItinerary({
-      title,
-      start_date: startDate,
-      end_date: endDate,
-      total_budget: totalBudget,
-      travel_type: traveler,
-    });
+    const result = await generate(params);
+    if (result) {
+      setMode("options");
+    } else {
+      Alert.alert("Couldn't generate itinerary", generateError ?? "Please try again.");
+    }
+  };
 
-    if (!itinerary) {
-      Alert.alert("Couldn't create itinerary", error ?? "Please try again.");
+  const handleChoose = async (index: number) => {
+    if (!options || !lastParams) return;
+    setChoosingIndex(index);
+    const saved = await save(options[index], lastParams);
+    setChoosingIndex(null);
+
+    if (!saved) {
+      Alert.alert("Couldn't save itinerary", "Please try again.");
       return;
     }
 
-    Alert.alert("Itinerary created!", title);
+    Alert.alert("Itinerary saved!", saved.title, [
+      { text: "View in profile", onPress: () => router.push("/(tabs)/profile") },
+      { text: "OK" },
+    ]);
+
+    reset();
+    setMode("form");
   };
 
   return (
     <LinearGradient colors={["#E8F4F1", "#EAF6FB"]} style={styles.gradient}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.content}>
-          <Text style={styles.heading}>Plan your{"\n"}Perfect Trip</Text>
+        {mode === "form" ? (
+          <View style={styles.content}>
+            <Text style={styles.heading}>Plan your{"\n"}Perfect Trip</Text>
 
-          <TravelDatesCard
-            startLabel={dateLabel.start}
-            endLabel={dateLabel.end}
-            onPressStart={() => openDateModal("start")}
-            onPressEnd={() => openDateModal("end")}
-          />
+            <TravelDatesCard
+              startLabel={dateLabel.start}
+              endLabel={dateLabel.end}
+              onPressStart={() => openDateModal("start")}
+              onPressEnd={() => openDateModal("end")}
+            />
 
-          <BudgetCard budgetLabel={budgetLabel} onPress={openBudgetModal} />
+            <BudgetCard budgetLabel={budgetLabel} onPress={openBudgetModal} />
 
-          <Text style={styles.sectionLabel}>Who's going?</Text>
-          <TravelerPills selected={traveler} onSelect={setTraveler} />
+            <Text style={styles.sectionLabel}>Who's going?</Text>
+            <TravelerPills selected={traveler} onSelect={setTraveler} />
 
-          <GenerateButton
-            disabled={!canGenerate}
-            loading={loading}
-            onPress={handleGenerate}
-          />
-          {!canGenerate && (
-            <Text style={styles.hintText}>Pick your dates and budget to continue</Text>
-          )}
-        </View>
+            <MultiSelectChips
+              label="What are you interested in?"
+              options={INTERESTS}
+              selected={interests}
+              onToggle={toggleInterest}
+            />
+
+            <MultiSelectChips
+              label="Preferred activities"
+              options={PREFERRED_ACTIVITIES}
+              selected={activities}
+              onToggle={toggleActivity}
+            />
+
+            <GenerateButton disabled={!canGenerate} loading={generating} onPress={runGenerate} />
+            {!canGenerate && <Text style={styles.hintText}>Pick your dates and budget to continue</Text>}
+          </View>
+        ) : (
+          <View style={styles.content}>
+            {generating || !options ? (
+              <View className="flex-1 items-center justify-center py-20">
+                <ActivityIndicator size="large" color="#13A9E9" />
+                <Text className="text-xs text-gray-500 mt-3">Crafting your itinerary options...</Text>
+              </View>
+            ) : (
+              <AIItineraryOptionsList
+                options={options}
+                choosingIndex={choosingIndex}
+                onChoose={handleChoose}
+                onRegenerate={runGenerate}
+                onBackToEdit={() => setMode("form")}
+              />
+            )}
+          </View>
+        )}
 
         <DatePickerModal
           visible={dateModalVisible}
@@ -216,25 +280,8 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
   safeArea: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 24 },
-  heading: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#111827",
-    lineHeight: 34,
-    marginBottom: 24,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    color: "#374151",
-    fontWeight: "500",
-    marginTop: 6,
-    marginBottom: 10,
-  },
-  hintText: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 10,
-  },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 24 },
+  heading: { fontSize: 28, fontWeight: "700", color: "#111827", lineHeight: 34, marginBottom: 24 },
+  sectionLabel: { fontSize: 13, color: "#374151", fontWeight: "500", marginTop: 6, marginBottom: 10 },
+  hintText: { textAlign: "center", fontSize: 12, color: "#6B7280", marginTop: 10 },
 });
