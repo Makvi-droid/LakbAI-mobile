@@ -2,12 +2,15 @@ import Mapbox, { Camera, MapView } from "@rnmapbox/maps";
 import { useRef, useState } from "react";
 import { View } from "react-native";
 import DestinationMarker from "../../components/map/DestinationMarker";
+import FilterButton from "../../components/map/FilterButton";
+import FilterSheet from "../../components/map/FilterSheet";
 import SearchBar from "../../components/map/SearchBar";
 import SpotCard from "../../components/map/SpotCard";
 import SpotDetailSheet from "../../components/map/SpotDetailSheet";
 import SpotMarker from "../../components/map/SpotMarker";
 import ZoomControls from "../../components/map/ZoomControls";
 import { useDestinations } from "../../hooks/useDestinations";
+import { useMapFilters } from "../../hooks/useMapFilters";
 import { useReverseGeocode } from "../../hooks/useReverseGeocode";
 import { DestinationRecord } from "../../types/destination";
 import { GeocodingFeature } from "../../types/geocoding";
@@ -25,10 +28,22 @@ export default function MapScreen() {
   const cameraRef = useRef<Camera>(null);
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const [selectedSpot, setSelectedSpot] = useState<GeocodingFeature | null>(null);
-  const [activeDestination, setActiveDestination] =
-    useState<DestinationRecord | null>(null);
+  const [activeDestination, setActiveDestination] = useState<DestinationRecord | null>(null);
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+
   const { reverseGeocode, loading } = useReverseGeocode();
   const { destinations } = useDestinations();
+  const {
+    filters,
+    filteredDestinations,
+    categoryOptions,
+    regionOptions,
+    activeCount,
+    toggleCategory,
+    toggleCrowdLevel,
+    toggleRegion,
+    clear,
+  } = useMapFilters(destinations);
 
   const flyTo = (coordinate: [number, number], zoom = SEARCH_RESULT_ZOOM) => {
     setZoomLevel(zoom);
@@ -49,11 +64,6 @@ export default function MapScreen() {
     const next = Math.max(zoomLevel - 1, MIN_ZOOM);
     setZoomLevel(next);
     cameraRef.current?.setCamera({ zoomLevel: next, animationDuration: 300 });
-  };
-
-  const handleSelectSearchResult = (feature: GeocodingFeature) => {
-    setSelectedSpot(feature);
-    flyTo(feature.coordinate, 14);
   };
 
   const handleMapPress = async (event: any) => {
@@ -82,7 +92,7 @@ export default function MapScreen() {
           }}
         />
 
-        {destinations.map((destination) => (
+        {filteredDestinations.map((destination) => (
           <DestinationMarker
             key={destination.destination_id}
             destination={destination}
@@ -90,18 +100,21 @@ export default function MapScreen() {
           />
         ))}
 
-        {selectedSpot && (
-          <SpotMarker id={selectedSpot.id} coordinate={selectedSpot.coordinate} />
-        )}
+        {selectedSpot && <SpotMarker id={selectedSpot.id} coordinate={selectedSpot.coordinate} />}
       </MapView>
 
       <View className="absolute top-[55px] left-4 right-4">
-        <SearchBar
-          onSelectLocation={(feature) => {
-            setSelectedSpot(feature);
-            flyTo(feature.coordinate, 14);
-          }}
-        />
+        <View className="flex-row items-start gap-2">
+          <View className="flex-1">
+            <SearchBar
+              onSelectLocation={(feature) => {
+                setSelectedSpot(feature);
+                flyTo(feature.coordinate, 14);
+              }}
+            />
+          </View>
+          <FilterButton activeCount={activeCount} onPress={() => setFilterSheetVisible(true)} />
+        </View>
 
         <View className="mt-3">
           <ZoomControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
@@ -109,11 +122,7 @@ export default function MapScreen() {
       </View>
 
       {selectedSpot && (
-        <SpotCard
-          spot={selectedSpot}
-          loading={loading}
-          onClose={() => setSelectedSpot(null)}
-        />
+        <SpotCard spot={selectedSpot} loading={loading} onClose={() => setSelectedSpot(null)} />
       )}
 
       <SpotDetailSheet
@@ -123,6 +132,18 @@ export default function MapScreen() {
         onAskLakbAI={() => {
           // stubbed until the LakbAI assistant flow is wired up
         }}
+      />
+
+      <FilterSheet
+        visible={filterSheetVisible}
+        filters={filters}
+        categoryOptions={categoryOptions}
+        regionOptions={regionOptions}
+        onToggleCategory={toggleCategory}
+        onToggleCrowdLevel={toggleCrowdLevel}
+        onToggleRegion={toggleRegion}
+        onClear={clear}
+        onClose={() => setFilterSheetVisible(false)}
       />
     </View>
   );
