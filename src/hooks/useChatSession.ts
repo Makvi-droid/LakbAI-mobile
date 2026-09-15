@@ -2,6 +2,7 @@ import { sendMessageToGemini, type GeminiChatTurn } from "@/lib/gemini";
 import { supabase } from "@/lib/supabase";
 import type { ChatMessageRow } from "@/types/chat";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 export function useChatSession() {
     const [sessionId, setSessionId] = useState<number | null>(null);
@@ -10,6 +11,8 @@ export function useChatSession() {
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const userIdRef = useRef<string | null>(null);
+
+    const { session } = useAuth();
 
     const init = useCallback(async () => {
         setLoading(true);
@@ -68,7 +71,7 @@ export function useChatSession() {
     const sendMessage = useCallback(
         async (text: string) => {
             const trimmed = text.trim();
-            if (!sessionId || !trimmed || sending) return;
+            if (!sessionId || !trimmed || sending || !session?.user) return;
 
             setSending(true);
             setError(null);
@@ -101,7 +104,7 @@ export function useChatSession() {
                     parts: [{ text: m.message_text }],
                 }));
 
-                const reply = await sendMessageToGemini(history, trimmed);
+                const reply = await sendMessageToGemini(history, trimmed, session.user.id);
 
                 const { data: savedBotMsg, error: botErr } = await supabase
                     .from("chat_messages")
@@ -118,7 +121,7 @@ export function useChatSession() {
                 setSending(false);
             }
         },
-        [sessionId, messages, sending]
+        [sessionId, messages, sending, session]
     );
 
     const startNewSession = useCallback(async () => {

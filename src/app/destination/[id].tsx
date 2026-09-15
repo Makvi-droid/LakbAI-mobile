@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
-
+import { router } from "expo-router";
 import DetailHero from "../../components/destination/DetailHero";
 import DetailTabs, { DetailTab } from "../../components/destination/DetailTabs";
 import InfoCard from "../../components/destination/InfoCard";
@@ -66,7 +66,13 @@ export default function DestinationDetailScreen() {
         <DetailTabs active={activeTab} onChange={setActiveTab} />
 
         {activeTab === "overview" && (
-          <OverviewSection description={destination.description} tags={[destination.category]} />
+          <OverviewSection
+            description={destination.description}
+            tags={[destination.category]}
+            onTalkToLakbai={() =>
+              router.push({ pathname: "/(tabs)/ai", params: { prefill: destination.destination_name } })
+            }
+          />
         )}
 
         {activeTab === "reviews" && <ReviewsSection reviews={reviews} />}
