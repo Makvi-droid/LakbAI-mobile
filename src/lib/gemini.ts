@@ -1,7 +1,5 @@
-import type {
-    AIItineraryOption,
-    ItineraryGenerationParams,
-} from "@/types/itinerary";
+import { executeGeminiTool, GEMINI_TOOLS } from "@/lib/geminiTools";
+import type { AIItineraryOption, ItineraryGenerationParams } from "@/types/itinerary";
 import { TRAVELER_COUNT_BY_TYPE } from "@/types/itinerary";
 
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
@@ -13,9 +11,14 @@ You help users by:
 - Recommending destinations based on their interests, budget, or travel style
 - Providing information about landmarks and heritage sites
 - Offering local travel tips (transport, weather, etiquette, best time to visit)
-- Helping refine or improve their travel itinerary
+- Helping refine their saved travel itineraries
 
-Keep replies conversational, warm, and concise (a few short paragraphs max unless asked for detail). Use a friendly Filipino travel-guide tone. If you don't know something specific (e.g. current prices, exact schedules), say so honestly and suggest how the user can verify it.`;
+Rules:
+1. Always call search_destinations before recommending a specific named place — never invent or recommend a destination you haven't retrieved this way.
+2. If the user wants to change a saved itinerary, first call list_saved_itineraries (if you don't already know which one) then get_itinerary_detail to see its current stops before proposing anything.
+3. Before calling update_itinerary_stop, add_itinerary_stop, or remove_itinerary_stop, clearly state the exact change you're about to make and wait for the user to confirm it in their next message — do not apply edits the user hasn't explicitly agreed to.
+4. After a successful edit, briefly confirm what changed in plain language.
+5. Keep replies conversational, warm, and concise. Use a friendly Filipino travel-guide tone. If you don't know something specific (e.g. current prices, exact schedules), say so honestly.`;
 
 export interface GeminiChatTurn {
     role: "user" | "model";
@@ -26,50 +29,84 @@ function delay(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function sendMessageToGemini(
-    history: GeminiChatTurn[],
-    newMessage: string,
-    attempt = 0
-): Promise<string> {
+async function callGemini(contents: any[], tools?: any[], attempt = 0): Promise<any> {
     const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) throw new Error("Missing EXPO_PUBLIC_GEMINI_API_KEY in .env");
 
-    const contents = [...history, { role: "user", parts: [{ text: newMessage }] }];
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            contents,
+            ...(tools ? { tools } : {}),
+            systemInstruction: { role: "system", parts: [{ text: CHAT_SYSTEM_PROMPT }] },
+            generationConfig: { temperature: 0.8, maxOutputTokens: 800 },
+        }),
+    });
 
-    try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents,
-                systemInstruction: { role: "system", parts: [{ text: CHAT_SYSTEM_PROMPT }] },
-                generationConfig: { temperature: 0.8, maxOutputTokens: 800 },
-            }),
-        });
-
-        if (response.status === 429 && attempt < 2) {
-            await delay(1000 * (attempt + 1));
-            return sendMessageToGemini(history, newMessage, attempt + 1);
-        }
-
-        if (!response.ok) {
-            const text = await response.text();
-            if (response.status === 429) {
-                throw new Error("Gemini is rate-limiting requests right now. Please wait 30-60 seconds and try again.");
-            }
-            throw new Error(text || `Gemini request failed (${response.status})`);
-        }
-
-        const json = await response.json();
-        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("Gemini returned an empty response");
-        return text.trim();
-    } catch (error: any) {
-        throw error;
+    if (response.status === 429 && attempt < 2) {
+        await delay(1000 * (attempt + 1));
+        return callGemini(contents, tools, attempt + 1);
     }
+
+    if (!response.ok) {
+        const text = await response.text();
+        if (response.status === 429) {
+            throw new Error("Gemini is rate-limiting requests right now. Please wait 30-60 seconds and try again.");
+        }
+        throw new Error(text || `Gemini request failed (${response.status})`);
+    }
+
+    return response.json();
 }
 
-// --- Itinerary generation ---
+// Chat with tool-calling: lets Gemini query/edit real destinations & itineraries mid-conversation.
+export async function sendMessageToGemini(
+    history: GeminiChatTurn[],
+    newMessage: string,
+    userId: string
+): Promise<string> {
+    let contents: any[] = [...history, { role: "user", parts: [{ text: newMessage }] }];
+
+    const MAX_TOOL_ROUNDS = 5;
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        const json = await callGemini(contents, GEMINI_TOOLS);
+        const candidateContent = json.candidates?.[0]?.content;
+        const parts = candidateContent?.parts ?? [];
+
+        const functionCalls = parts.filter((p: any) => p.functionCall);
+
+        if (functionCalls.length === 0) {
+            const text = parts.find((p: any) => p.text)?.text;
+            if (!text) throw new Error("Gemini returned an empty response");
+            return text.trim();
+        }
+
+        // Model wants to call tools — append its turn first.
+        contents = [...contents, { role: "model", parts }];
+
+        // Execute each requested tool call against Supabase.
+        const functionResponses = await Promise.all(
+            functionCalls.map(async (p: any) => {
+                const result = await executeGeminiTool(p.functionCall.name, p.functionCall.args ?? {}, userId);
+                return {
+                    functionResponse: {
+                        name: p.functionCall.name,
+                        response: result,
+                    },
+                };
+            })
+        );
+
+        // Feed the results back in as role "user" — Gemini's REST API doesn't accept role "function".
+        contents = [...contents, { role: "user", parts: functionResponses }];
+    }
+
+    throw new Error("LakbAI took too many steps to respond — please try rephrasing your request.");
+}
+
+// --- Itinerary generation (unchanged) ---
 
 interface CandidateDestination {
     destination_id: number;
@@ -106,12 +143,7 @@ const ITINERARY_RESPONSE_SCHEMA = {
                                             activity_description: { type: "string" },
                                             estimated_cost: { type: "number" },
                                         },
-                                        required: [
-                                            "destination_id",
-                                            "visit_order",
-                                            "activity_description",
-                                            "estimated_cost",
-                                        ],
+                                        required: ["destination_id", "visit_order", "activity_description", "estimated_cost"],
                                     },
                                 },
                             },
@@ -128,10 +160,7 @@ const ITINERARY_RESPONSE_SCHEMA = {
                                 type: "array",
                                 items: {
                                     type: "object",
-                                    properties: {
-                                        category: { type: "string" },
-                                        amount: { type: "number" },
-                                    },
+                                    properties: { category: { type: "string" }, amount: { type: "number" } },
                                     required: ["category", "amount"],
                                 },
                             },
@@ -173,78 +202,60 @@ ${candidates.map((c) => `- id=${c.destination_id} | ${c.destination_name} (${c.r
 
 export async function generateItineraryOptions(
     params: ItineraryGenerationParams,
-    candidates: CandidateDestination[],
-    attempt = 0
+    candidates: CandidateDestination[]
 ): Promise<AIItineraryOption[]> {
-    const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-    if (!apiKey) throw new Error("Missing EXPO_PUBLIC_GEMINI_API_KEY in .env");
-
     if (candidates.length === 0) {
         throw new Error("No destinations available to build an itinerary from.");
     }
 
     const start = new Date(params.startDate + "T00:00:00");
     const end = new Date(params.endDate + "T00:00:00");
-    const dayCount = Math.max(
-        1,
-        Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    );
+    const dayCount = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
     const travelerCount = TRAVELER_COUNT_BY_TYPE[params.travelType];
 
     const prompt = buildItineraryPrompt(params, dayCount, travelerCount, candidates);
 
-    try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.9,
-                    maxOutputTokens: 4000,
-                    responseMimeType: "application/json",
-                    responseSchema: ITINERARY_RESPONSE_SCHEMA,
-                },
-            }),
-        });
+    const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing EXPO_PUBLIC_GEMINI_API_KEY in .env");
 
-        if (response.status === 429 && attempt < 2) {
-            await delay(1500 * (attempt + 1));
-            return generateItineraryOptions(params, candidates, attempt + 1);
-        }
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.9,
+                maxOutputTokens: 4000,
+                responseMimeType: "application/json",
+                responseSchema: ITINERARY_RESPONSE_SCHEMA,
+            },
+        }),
+    });
 
-        if (!response.ok) {
-            const text = await response.text();
-            if (response.status === 429) {
-                throw new Error("Gemini is rate-limiting requests right now. Please wait a moment and try again.");
-            }
-            throw new Error(text || `Gemini request failed (${response.status})`);
-        }
-
-        const json = await response.json();
-        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("Gemini returned an empty response");
-
-        const parsed = JSON.parse(text) as { options: AIItineraryOption[] };
-        if (!parsed.options?.length) throw new Error("Gemini returned no itinerary options");
-
-        // Guard against hallucinated destination_ids — drop stops that reference
-        // a destination not in our candidate list, and join display info in.
-        const candidateMap = new Map(candidates.map((c) => [c.destination_id, c]));
-
-        return parsed.options.map((option) => ({
-            ...option,
-            days: option.days.map((day) => ({
-                ...day,
-                stops: day.stops
-                    .filter((stop) => candidateMap.has(stop.destination_id))
-                    .map((stop) => ({
-                        ...stop,
-                        destination_name: candidateMap.get(stop.destination_id)?.destination_name,
-                    })),
-            })),
-        }));
-    } catch (error: any) {
-        throw error;
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Gemini request failed (${response.status})`);
     }
+
+    const json = await response.json();
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("Gemini returned an empty response");
+
+    const parsed = JSON.parse(text) as { options: AIItineraryOption[] };
+    if (!parsed.options?.length) throw new Error("Gemini returned no itinerary options");
+
+    const candidateMap = new Map(candidates.map((c) => [c.destination_id, c]));
+
+    return parsed.options.map((option) => ({
+        ...option,
+        days: option.days.map((day) => ({
+            ...day,
+            stops: day.stops
+                .filter((stop) => candidateMap.has(stop.destination_id))
+                .map((stop) => ({
+                    ...stop,
+                    destination_name: candidateMap.get(stop.destination_id)?.destination_name,
+                })),
+        })),
+    }));
 }

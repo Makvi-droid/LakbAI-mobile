@@ -16,6 +16,7 @@ import { DestinationRecord } from "../../types/destination";
 import { GeocodingFeature } from "../../types/geocoding";
 import { toMapSpot } from "../../utils/toMapSpot";
 import { useSavedDestinationIds } from "../../hooks/useSavedDestinationIds";
+import { router } from "expo-router";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!);
 
@@ -133,8 +134,9 @@ export default function MapScreen() {
         visible={!!activeDestination}
         isSaved={activeDestination ? isSaved(activeDestination.destination_id) : false}
         onClose={() => setActiveDestination(null)}
-        onAskLakbAI={() => {
-          // stubbed until the LakbAI assistant flow is wired up
+        onAskLakbAI={(spot) => {
+          setActiveDestination(null);
+          router.push({ pathname: "/(tabs)/ai", params: { prefill: spot.name } });
         }}
         onToggleSave={() => {
           if (activeDestination) toggleSave(activeDestination.destination_id);

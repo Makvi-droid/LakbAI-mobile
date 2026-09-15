@@ -1,7 +1,8 @@
 import { ChatHeader, ChatInput, EmptyState, MessageBubble, TypingIndicator } from "@/components/ai";
 import { useChatSession } from "@/hooks/useChatSession";
+import { useLocalSearchParams } from "expo-router";
 import { useBottomTabBarHeight } from "expo-router/js-tabs";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Text } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,6 +12,9 @@ export default function AIScreen() {
   const [input, setInput] = useState("");
   const listRef = useRef<FlatList>(null);
   const tabBarHeight = useBottomTabBarHeight();
+
+  const { prefill } = useLocalSearchParams<{ prefill?: string }>();
+  const hasSentPrefill = useRef(false);
 
   const handleSend = useCallback(
     (text?: string) => {
@@ -22,6 +26,13 @@ export default function AIScreen() {
     },
     [input, sending, sendMessage]
   );
+
+  useEffect(() => {
+    if (!loading && prefill && !hasSentPrefill.current) {
+      hasSentPrefill.current = true;
+      handleSend(`Tell me about ${prefill} and what I can do there.`);
+    }
+  }, [loading, prefill, handleSend]);
 
   if (loading) {
     return (
